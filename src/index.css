@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #ffffff;
+  --surface-raised: #f8fafc;
+  --accent: #6366f1;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  color-scheme: light dark;
+}
+
+.dark {
+  --surface: #0f0f1a;
+  --surface-raised: #1a1a2e;
+  --accent: #818cf8;
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+body {
+  font-family: 'Nunito', system-ui, sans-serif;
+  background: var(--surface);
+  color: var(--text-primary);
+  overscroll-behavior: none;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Glassmorphism card */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.dark .glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Card style */
+.card {
+  @apply rounded-2xl p-4 shadow-sm;
+  background: var(--surface-raised);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.dark .card {
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 2px; }
+
+/* Safe area */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0); }
+
+/* Disable scroll bounce on wall display */
+.kiosk {
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+}
+
+/* Animated gradient background */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.kid-gradient-layla {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
+
+.kid-gradient-jack {
+  background: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
+}
+
+/* Number roll animation */
+@keyframes rollUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.roll-up {
+  animation: rollUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Confetti */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
