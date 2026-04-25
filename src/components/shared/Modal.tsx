@@ -17,23 +17,35 @@ export function Modal({ open, onClose, title, children }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            className="fixed inset-0 z-40"
+            style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
             onClick={onClose}
           />
           <motion.div
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl card pb-safe max-h-[90vh] overflow-y-auto"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            className="fixed bottom-0 left-0 right-0 z-50 pb-safe max-h-[92vh] overflow-y-auto"
+            style={{ background: 'var(--surface-raised)', borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}
           >
-            <div className="flex items-center justify-between mb-4 sticky top-0 pt-1">
-              {title && <h2 className="text-xl font-bold">{title}</h2>}
-              <button onClick={onClose} className="ml-auto p-2 rounded-xl hover:opacity-70">
-                <X className="w-5 h-5 text-text-muted" />
-              </button>
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border)' }} />
             </div>
-            {children}
+            <div className="px-5 pb-5">
+              {title && (
+                <div className="flex items-center justify-between mb-4 pt-1">
+                  <h2 className="text-xl font-black">{title}</h2>
+                  <button onClick={onClose}
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ background: 'var(--surface-sunken)' }}>
+                    <X className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                  </button>
+                </div>
+              )}
+              {children}
+            </div>
           </motion.div>
         </>
       )}

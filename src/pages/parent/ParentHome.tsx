@@ -2,22 +2,22 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAppStore } from '../../stores/appStore'
-import { PointsBadge } from '../../components/shared/PointsBadge'
 import { Modal } from '../../components/shared/Modal'
-import { LogOut, Bell, Zap, Plus, Minus } from 'lucide-react'
+import { LogOut, Bell, Plus, Minus } from 'lucide-react'
 
 export function ParentHome() {
   const navigate = useNavigate()
   const user = useAppStore(s => s.getCurrentUser())
-  const users = useAppStore(s => s.users.filter(u => !u.archived && u.role === 'kid'))
+  const kids = useAppStore(s => s.users.filter(u => !u.archived && u.role === 'kid'))
   const logout = useAppStore(s => s.logout)
   const getUserPoints = useAppStore(s => s.getUserPoints)
   const addPoints = useAppStore(s => s.addPoints)
   const choreInstances = useAppStore(s => s.choreInstances)
+  const chores = useAppStore(s => s.chores)
   const redemptions = useAppStore(s => s.redemptions)
   const transfers = useAppStore(s => s.transfers)
 
-  const [quickActionKid, setQuickActionKid] = useState<string | null>(null)
+  const [quickKid, setQuickKid] = useState<string | null>(null)
   const [quickReason, setQuickReason] = useState('')
   const [quickAmount, setQuickAmount] = useState(10)
   const [isDeduct, setIsDeduct] = useState(false)
@@ -26,196 +26,195 @@ export function ParentHome() {
 
   const today = new Date().toISOString().split('T')[0]
   const todayInstances = choreInstances.filter(ci => ci.dueDate === today)
-  const pendingApprovals = [
-    ...choreInstances.filter(ci => ci.status === 'submitted'),
-    ...redemptions.filter(r => r.status === 'pending'),
-    ...transfers.filter(t => t.status === 'pending'),
-  ].length
 
-  const choresCompleted = todayInstances.filter(ci => ci.status === 'approved').length
-  const choresTotal = todayInstances.filter(ci => ci.status !== 'denied').length
+  const pendingCount =
+    choreInstances.filter(ci => ci.status === 'submitted').length +
+    redemptions.filter(r => r.status === 'pending').length +
+    transfers.filter(t => t.status === 'pending').length
 
   const QUICK_AMOUNTS = [5, 10, 15, 20, 50]
-  const QUICK_REASONS_POSITIVE = ['Being helpful', 'Great attitude', 'Went above & beyond', 'Being kind to sibling', 'Extra chore']
-  const QUICK_REASONS_NEGATIVE = ['Bad attitude', 'Didn\'t listen', 'Fighting with sibling', 'Broke a rule']
+  const QUICK_REASONS_POS = ['Being helpful', 'Great attitude', 'Above & beyond', 'Kind to sibling', 'Extra chore']
+  const QUICK_REASONS_NEG = ['Bad attitude', 'Didn\'t listen', 'Fighting', 'Broke a rule']
 
-  const applyQuickAction = () => {
-    if (!quickActionKid || !quickReason || !user) return
-    addPoints(quickActionKid, isDeduct ? -quickAmount : quickAmount, quickReason, 'manual', user.id)
-    setQuickActionKid(null)
-    setQuickReason('')
-    setQuickAmount(10)
-    setIsDeduct(false)
+  const applyQuick = () => {
+    if (!quickKid || !quickReason || !user) return
+    addPoints(quickKid, isDeduct ? -quickAmount : quickAmount, quickReason, 'manual', user.id)
+    setQuickKid(null); setQuickReason(''); setQuickAmount(10); setIsDeduct(false)
   }
 
   return (
-    <div className="min-h-screen pb-24 pt-safe">
+    <div className="min-h-screen pb-28 pt-safe" style={{ background: 'var(--surface)' }}>
+
       {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Family Dashboard</h1>
-          <p className="text-text-muted text-sm">
+          <p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
+          <h1 className="text-2xl font-black mt-0.5">Family Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
-          {pendingApprovals > 0 && (
-            <button
-              onClick={() => navigate('/parent/approvals')}
-              className="relative p-2 rounded-xl card"
-            >
-              <Bell className="w-5 h-5 text-amber-500" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                {pendingApprovals}
+          {pendingCount > 0 && (
+            <button onClick={() => navigate('/parent/approvals')}
+              className="relative w-10 h-10 card flex items-center justify-center">
+              <Bell className="w-5 h-5" style={{ color: '#f59e0b' }} />
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-black">
+                {pendingCount}
               </span>
             </button>
           )}
-          <button onClick={() => { logout(); navigate('/') }} className="p-2 rounded-xl text-text-muted hover:opacity-70">
+          <button onClick={() => { logout(); navigate('/') }}
+            className="w-10 h-10 card flex items-center justify-center"
+            style={{ color: 'var(--text-muted)' }}>
             <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Family overview */}
-      <div className="px-4 mb-4">
-        <div className="grid gap-3">
-          {users.map(kid => {
+      {/* Kids columns */}
+      <div className="px-5 mb-5">
+        <div className={`grid gap-3 ${kids.length === 1 ? 'grid-cols-1' : kids.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+          {kids.map((kid, i) => {
             const pts = getUserPoints(kid.id)
             const kidInstances = todayInstances.filter(ci => ci.assignedTo === kid.id)
-            const kidDone = kidInstances.filter(ci => ci.status === 'approved').length
-            const kidTotal = kidInstances.filter(ci => ci.status !== 'denied').length
+            const done = kidInstances.filter(ci => ci.status === 'approved').length
+            const total = kidInstances.filter(ci => ci.status !== 'denied').length
+            const remaining = kidInstances.filter(ci => ci.status === 'pending')
 
             return (
               <motion.div
                 key={kid.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
                 className="card p-4"
-                style={{ borderLeft: `4px solid ${kid.accentColor}` }}
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-4xl">{kid.avatar}</span>
-                  <div className="flex-1">
-                    <p className="font-bold text-lg">{kid.name}</p>
-                    <PointsBadge points={pts} size="sm" />
+                {/* Kid header */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ background: kid.accentColor + '20' }}>
+                    {kid.avatar}
                   </div>
-                  <button
-                    onClick={() => { setQuickActionKid(kid.id); setIsDeduct(false) }}
-                    className="p-2 rounded-xl hover:opacity-70"
-                    style={{ color: kid.accentColor }}
-                  >
-                    <Zap className="w-5 h-5" />
-                  </button>
-                </div>
-                {kidTotal > 0 && (
-                  <div>
-                    <div className="flex justify-between text-xs text-text-muted mb-1">
-                      <span>Today's chores</span>
-                      <span>{kidDone}/{kidTotal}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black truncate">{kid.name}</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-black" style={{ color: kid.accentColor }}>⭐ {pts}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>pts</span>
                     </div>
-                    <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${kidTotal > 0 ? (kidDone / kidTotal) * 100 : 0}%`, backgroundColor: kid.accentColor }}
-                      />
+                  </div>
+                </div>
+
+                {/* Chore progress */}
+                {total > 0 && (
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs font-bold mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                      <span>Chores</span>
+                      <span>{done}/{total}</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div className="progress-bar-fill"
+                        style={{ width: `${total > 0 ? (done / total) * 100 : 0}%`, background: kid.accentColor }} />
                     </div>
                   </div>
                 )}
+
+                {/* Pending chores */}
+                <div className="grid gap-1.5 mb-3">
+                  {remaining.slice(0, 3).map(ci => {
+                    const chore = chores.find(c => c.id === ci.choreId)
+                    if (!chore) return null
+                    return (
+                      <div key={ci.id} className="flex items-center gap-2 py-1.5 px-2 rounded-xl"
+                        style={{ background: 'var(--surface-sunken)' }}>
+                        <span className="text-base">{chore.emoji}</span>
+                        <span className="text-xs font-semibold flex-1 truncate">{chore.name}</span>
+                        <span className="text-xs font-bold" style={{ color: kid.accentColor }}>+{chore.pointValue}</span>
+                      </div>
+                    )
+                  })}
+                  {remaining.length === 0 && total > 0 && (
+                    <div className="text-center py-2 text-2xl">🎉</div>
+                  )}
+                </div>
+
+                {/* Quick action buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setQuickKid(kid.id); setIsDeduct(false) }}
+                    className="flex-1 py-2 rounded-xl text-sm font-black text-white flex items-center justify-center gap-1"
+                    style={{ background: kid.accentColor }}>
+                    <Plus className="w-3.5 h-3.5" /> Pts
+                  </button>
+                  <button
+                    onClick={() => { setQuickKid(kid.id); setIsDeduct(true) }}
+                    className="py-2 px-3 rounded-xl text-sm font-black"
+                    style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </motion.div>
             )
           })}
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="px-4 mb-4 grid grid-cols-2 gap-3">
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black" style={{ color: 'var(--accent)' }}>
-            {choresCompleted}/{choresTotal}
-          </p>
-          <p className="text-text-muted text-sm">Chores Today</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-amber-500">{pendingApprovals}</p>
-          <p className="text-text-muted text-sm">Pending Approvals</p>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: '+ Points', icon: Plus, action: () => { if (users[0]) setQuickActionKid(users[0].id) }, color: 'text-green-500' },
-            { label: '− Points', icon: Minus, action: () => { if (users[0]) { setQuickActionKid(users[0].id); setIsDeduct(true) } }, color: 'text-red-500' },
-            { label: 'Approvals', icon: Bell, action: () => navigate('/parent/approvals'), color: 'text-amber-500' },
-            { label: 'Manage', icon: Zap, action: () => navigate('/parent/manage'), color: 'var(--accent)' },
-          ].map(({ label, icon: Icon, action, color }) => (
-            <motion.button
-              key={label}
-              whileTap={{ scale: 0.97 }}
-              onClick={action}
-              className="card p-4 flex flex-col items-center gap-2 hover:opacity-90"
-            >
-              <Icon className={`w-6 h-6 ${color}`} style={color.startsWith('#') || color.startsWith('var') ? { color } : {}} />
-              <span className="font-semibold text-sm">{label}</span>
-            </motion.button>
-          ))}
-        </div>
+      {/* Summary row */}
+      <div className="px-5 grid grid-cols-3 gap-3 mb-5">
+        {[
+          { label: 'Chores Done', value: `${todayInstances.filter(ci => ci.status === 'approved').length}/${todayInstances.filter(ci => ci.status !== 'denied').length}`, color: '#22c55e' },
+          { label: 'Pending', value: pendingCount, color: '#f59e0b', action: () => navigate('/parent/approvals') },
+          { label: 'Kids', value: kids.length, color: '#6366f1' },
+        ].map(s => (
+          <button key={s.label} onClick={s.action}
+            className="card p-3 text-center">
+            <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-xs font-bold mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
+          </button>
+        ))}
       </div>
 
       {/* Quick action modal */}
-      <Modal
-        open={!!quickActionKid}
-        onClose={() => { setQuickActionKid(null); setIsDeduct(false) }}
-        title={isDeduct ? '− Deduct Points' : '+ Add Points'}
-      >
-        {quickActionKid && (
-          <div className="py-2 grid gap-4">
+      <Modal open={!!quickKid} onClose={() => { setQuickKid(null); setIsDeduct(false) }}
+        title={isDeduct ? '− Remove Points' : '+ Add Points'}>
+        {quickKid && (
+          <div className="grid gap-4 py-2">
             {/* Kid selector */}
             <div className="flex gap-2">
-              {users.map(kid => (
-                <button
-                  key={kid.id}
-                  onClick={() => setQuickActionKid(kid.id)}
-                  className={`flex-1 card p-3 flex flex-col items-center gap-1 ${quickActionKid === kid.id ? 'ring-2' : ''}`}
-                  style={quickActionKid === kid.id ? { outline: `2px solid ${kid.accentColor}` } : {}}
-                >
-                  <span className="text-2xl">{kid.avatar}</span>
-                  <span className="text-xs font-bold">{kid.name}</span>
+              {kids.map(k => (
+                <button key={k.id} onClick={() => setQuickKid(k.id)}
+                  className="flex-1 py-3 rounded-2xl flex flex-col items-center gap-1 transition-all"
+                  style={quickKid === k.id
+                    ? { background: k.accentColor + '20', outline: `2px solid ${k.accentColor}` }
+                    : { background: 'var(--surface-sunken)' }}>
+                  <span className="text-2xl">{k.avatar}</span>
+                  <span className="text-xs font-black">{k.name}</span>
                 </button>
               ))}
             </div>
 
-            {/* +/- toggle */}
+            {/* +/- */}
             <div className="flex gap-2">
-              <button
-                onClick={() => setIsDeduct(false)}
-                className={`flex-1 py-2 rounded-xl font-bold transition-all ${!isDeduct ? 'bg-green-500 text-white' : 'card text-text-muted'}`}
-              >
-                + Add
-              </button>
-              <button
-                onClick={() => setIsDeduct(true)}
-                className={`flex-1 py-2 rounded-xl font-bold transition-all ${isDeduct ? 'bg-red-500 text-white' : 'card text-text-muted'}`}
-              >
-                − Deduct
-              </button>
+              {[false, true].map(d => (
+                <button key={String(d)} onClick={() => setIsDeduct(d)}
+                  className="flex-1 py-2.5 rounded-xl font-black transition-all"
+                  style={isDeduct === d
+                    ? { background: d ? '#ef4444' : '#22c55e', color: 'white' }
+                    : { background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                  {d ? '− Remove' : '+ Add'}
+                </button>
+              ))}
             </div>
 
             {/* Amount */}
             <div>
-              <p className="font-semibold text-sm mb-2 text-text-muted">Amount</p>
+              <p className="section-title">Amount</p>
               <div className="flex gap-2">
                 {QUICK_AMOUNTS.map(a => (
-                  <button
-                    key={a}
-                    onClick={() => setQuickAmount(a)}
-                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${
-                      quickAmount === a ? 'text-white' : 'card text-text-muted'
-                    }`}
-                    style={quickAmount === a ? { backgroundColor: 'var(--accent)' } : {}}
-                  >
+                  <button key={a} onClick={() => setQuickAmount(a)}
+                    className="flex-1 py-2.5 rounded-xl font-black text-sm transition-all"
+                    style={quickAmount === a
+                      ? { background: 'var(--accent)', color: 'white' }
+                      : { background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
                     {a}
                   </button>
                 ))}
@@ -224,34 +223,28 @@ export function ParentHome() {
 
             {/* Reason */}
             <div>
-              <p className="font-semibold text-sm mb-2 text-text-muted">Reason (required)</p>
+              <p className="section-title">Reason</p>
               <div className="flex flex-wrap gap-2 mb-2">
-                {(isDeduct ? QUICK_REASONS_NEGATIVE : QUICK_REASONS_POSITIVE).map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setQuickReason(r)}
-                    className={`text-sm px-3 py-1.5 rounded-xl ${quickReason === r ? 'text-white' : 'card text-text-muted'}`}
-                    style={quickReason === r ? { backgroundColor: 'var(--accent)' } : {}}
-                  >
+                {(isDeduct ? QUICK_REASONS_NEG : QUICK_REASONS_POS).map(r => (
+                  <button key={r} onClick={() => setQuickReason(r)}
+                    className="text-sm px-3 py-1.5 rounded-xl font-semibold transition-all"
+                    style={quickReason === r
+                      ? { background: 'var(--accent)', color: 'white' }
+                      : { background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
                     {r}
                   </button>
                 ))}
               </div>
-              <input
-                value={quickReason}
-                onChange={e => setQuickReason(e.target.value)}
-                placeholder="Or type a custom reason..."
-                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-transparent text-sm"
-              />
+              <input value={quickReason} onChange={e => setQuickReason(e.target.value)}
+                placeholder="Custom reason..."
+                className="w-full p-3 rounded-xl text-sm font-semibold"
+                style={{ background: 'var(--surface-sunken)', color: 'var(--text-primary)', border: 'none', outline: 'none' }} />
             </div>
 
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={applyQuickAction}
+            <motion.button whileTap={{ scale: 0.97 }} onClick={applyQuick}
               disabled={!quickReason}
-              className="w-full py-4 rounded-2xl font-bold text-white text-lg disabled:opacity-40"
-              style={{ backgroundColor: isDeduct ? '#ef4444' : '#22c55e' }}
-            >
+              className="w-full py-4 rounded-2xl font-black text-white text-lg disabled:opacity-30"
+              style={{ background: isDeduct ? '#ef4444' : '#22c55e' }}>
               {isDeduct ? `− ${quickAmount} points` : `+ ${quickAmount} points`}
             </motion.button>
           </div>

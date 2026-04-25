@@ -2,20 +2,19 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../stores/appStore'
-import { PointsBadge } from '../../components/shared/PointsBadge'
 import { Modal } from '../../components/shared/Modal'
 import { Confetti } from '../../components/shared/Confetti'
-import { getLevelForPoints, LEVEL_THRESHOLDS, BADGE_DEFINITIONS, type MoodEmoji } from '../../types'
+import { BADGE_DEFINITIONS, getLevelForPoints, LEVEL_THRESHOLDS, type MoodEmoji } from '../../types'
 import { formatDate } from '../../utils/date'
-import { LogOut, ChevronRight, Gift, Flame } from 'lucide-react'
+import { LogOut, Flame, ChevronRight } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 
 const MOODS: { emoji: MoodEmoji; label: string }[] = [
   { emoji: '😄', label: 'Great!' },
   { emoji: '🙂', label: 'Good' },
   { emoji: '😐', label: 'Okay' },
-  { emoji: '😕', label: 'Not great' },
-  { emoji: '😢', label: 'Rough day' },
+  { emoji: '😕', label: 'Meh' },
+  { emoji: '😢', label: 'Rough' },
 ]
 
 export function KidHome() {
@@ -42,20 +41,16 @@ export function KidHome() {
   const points = getUserPoints(user.id)
   const todayMood = getTodayMood(user.id)
   const todayInstances = getTodayInstances(user.id)
-  const pendingChores = todayInstances.filter(ci => ci.status === 'pending' || ci.status === 'submitted')
-  const doneChores = todayInstances.filter(ci => ci.status === 'approved')
-  const userBadges = badges.filter(b => b.userId === user.id)
+  const doneToday = todayInstances.filter(ci => ci.status === 'approved').length
+  const totalToday = todayInstances.filter(ci => ci.status !== 'denied').length
+  const pendingToday = todayInstances.filter(ci => ci.status === 'pending')
 
-  const recentActivity = ledger
-    .filter(e => e.userId === user.id)
-    .slice(-5)
-    .reverse()
+  const recentActivity = ledger.filter(e => e.userId === user.id).slice(-4).reverse()
 
   const upcomingActivities = activities
-    .filter(a => a.assignedTo.includes(user.id))
-    .filter(a => new Date(a.start) >= new Date())
+    .filter(a => a.assignedTo.includes(user.id) && new Date(a.start) >= new Date())
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-    .slice(0, 3)
+    .slice(0, 2)
 
   const lifetime = user.lifetimePoints ?? 0
   const currentLevel = getLevelForPoints(lifetime)
@@ -65,8 +60,10 @@ export function KidHome() {
     : 100
 
   const pinnedPrize = pinnedPrizeId ? prizes.find(p => p.id === pinnedPrizeId) : null
-  const pointsToGoal = pinnedPrize ? Math.max(0, pinnedPrize.cost - points) : 0
   const goalProgress = pinnedPrize ? Math.min(100, (points / pinnedPrize.cost) * 100) : 0
+  const pointsToGoal = pinnedPrize ? Math.max(0, pinnedPrize.cost - points) : 0
+
+  const userBadges = badges.filter(b => b.userId === user.id)
 
   const selectMood = (mood: MoodEmoji) => {
     logBehavior(user.id, mood)
@@ -76,175 +73,205 @@ export function KidHome() {
   }
 
   return (
-    <div className="min-h-screen pb-24 pt-safe">
+    <div className="min-h-screen pb-28 pt-safe" style={{ background: 'var(--surface)' }}>
       <Confetti trigger={confetti} />
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+      <div className="px-5 pt-5 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-4xl">{user.avatar}</span>
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl"
+            style={{ background: user.accentColor + '20' }}>
+            {user.avatar}
+          </div>
           <div>
-            <h1 className="text-xl font-black">Hey, {user.name}! 👋</h1>
-            <div className="flex items-center gap-2 text-sm text-text-muted">
+            <h1 className="text-lg font-black">Hey, {user.name}! 👋</h1>
+            <div className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
               <span>{currentLevel.name}</span>
               {(user.streak ?? 0) > 0 && (
-                <span className="flex items-center gap-0.5 text-orange-500 font-bold">
-                  <Flame className="w-3.5 h-3.5" /> {user.streak} day streak
+                <span className="flex items-center gap-0.5" style={{ color: '#f97316' }}>
+                  <Flame className="w-3 h-3" /> {user.streak}d streak
                 </span>
               )}
             </div>
           </div>
         </div>
-        <button onClick={() => { logout(); navigate('/') }} className="p-2 rounded-xl text-text-muted hover:opacity-70">
-          <LogOut className="w-5 h-5" />
+        <button onClick={() => { logout(); navigate('/') }}
+          className="w-9 h-9 card flex items-center justify-center"
+          style={{ color: 'var(--text-muted)' }}>
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Points hero */}
-      <div className="mx-4 my-3 rounded-3xl p-5 relative overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${user.accentColor}cc, ${user.accentColor}66)` }}>
+      {/* Points hero card */}
+      <div className="mx-5 my-3 rounded-3xl p-5 text-white relative overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${user.accentColor}, ${user.accentColor}bb)` }}>
         <div className="relative z-10">
-          <p className="text-white/70 text-sm font-semibold mb-1">YOUR POINTS</p>
-          <PointsBadge points={points} size="xl" />
-          <div className="mt-3">
-            <div className="flex justify-between text-white/70 text-xs mb-1">
+          <p className="text-white/70 text-xs font-black uppercase tracking-widest mb-1">Your Points</p>
+          <div className="flex items-end gap-2 mb-4">
+            <span className="text-5xl font-black">{points.toLocaleString()}</span>
+            <span className="text-white/60 text-lg mb-1">pts</span>
+          </div>
+          <div>
+            <div className="flex justify-between text-white/70 text-xs font-bold mb-1.5">
               <span>{currentLevel.name}</span>
-              <span>{nextLevel ? `${nextLevel.name} in ${nextLevel.minPoints - lifetime} pts` : 'Max Level!'}</span>
+              <span>{nextLevel ? `${nextLevel.minPoints - lifetime} to ${nextLevel.name}` : '🏆 Max Level'}</span>
             </div>
-            <div className="h-2 bg-white/20 rounded-full">
+            <div className="h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${levelProgress}%` }}
                 transition={{ duration: 1, delay: 0.3 }}
-                className="h-full bg-white rounded-full"
+                className="h-full rounded-full bg-white"
               />
             </div>
           </div>
         </div>
+        {/* Decorative circles */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-20"
+          style={{ background: 'white' }} />
+        <div className="absolute -right-4 -bottom-12 w-40 h-40 rounded-full opacity-10"
+          style={{ background: 'white' }} />
       </div>
 
       {/* Mood check-in */}
-      {!todayMood && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 mb-3"
-        >
-          <button
-            onClick={() => setMoodOpen(true)}
-            className="card w-full p-4 flex items-center gap-3 hover:opacity-90"
-            style={{ borderLeft: '4px solid #f59e0b' }}
-          >
-            <span className="text-2xl">😊</span>
-            <div className="text-left">
-              <p className="font-bold">How's your day?</p>
-              <p className="text-text-muted text-sm">Tap to check in your mood</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-text-muted ml-auto" />
-          </button>
-        </motion.div>
-      )}
-
-      {todayMood && (
-        <div className="mx-4 mb-3 card p-4 flex items-center gap-3">
-          <span className="text-3xl">{todayMood.moodEmoji}</span>
-          <div>
-            <p className="font-semibold">Today's mood logged</p>
-            <p className="text-text-muted text-sm">{MOODS.find(m => m.emoji === todayMood.moodEmoji)?.label}</p>
+      {!todayMood ? (
+        <motion.button
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setMoodOpen(true)}
+          className="card mx-5 mb-3 p-4 flex items-center gap-3 w-[calc(100%-40px)]"
+          style={{ borderLeft: `4px solid #f59e0b` }}>
+          <span className="text-2xl">😊</span>
+          <div className="flex-1 text-left">
+            <p className="font-black text-sm">Check in your mood</p>
+            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>How's your day going?</p>
           </div>
+          <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+        </motion.button>
+      ) : (
+        <div className="card mx-5 mb-3 p-3 flex items-center gap-3">
+          <span className="text-2xl">{todayMood.moodEmoji}</span>
+          <p className="font-bold text-sm">{MOODS.find(m => m.emoji === todayMood.moodEmoji)?.label} — mood logged</p>
         </div>
       )}
 
       {/* Today's chores */}
-      <div className="mx-4 mb-3">
+      <div className="px-5 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold text-lg">Today's Chores</h2>
-          <span className="text-text-muted text-sm">{doneChores.length}/{todayInstances.length} done</span>
+          <p className="section-title" style={{ marginBottom: 0 }}>Today's Chores</p>
+          <span className="text-xs font-black" style={{ color: doneToday === totalToday && totalToday > 0 ? '#22c55e' : 'var(--text-muted)' }}>
+            {doneToday}/{totalToday} done
+          </span>
         </div>
-        {todayInstances.length === 0 ? (
-          <div className="card p-4 text-center text-text-muted">
-            <p className="text-2xl mb-1">🎉</p>
-            <p>No chores today!</p>
+
+        {totalToday === 0 ? (
+          <div className="card p-6 text-center">
+            <p className="text-3xl mb-1">🎉</p>
+            <p className="font-black">No chores today!</p>
           </div>
         ) : (
-          <div className="grid gap-2">
-            {todayInstances.slice(0, 3).map(ci => {
-              const chore = chores.find(c => c.id === ci.choreId)
-              if (!chore) return null
-              return (
-                <div key={ci.id} className="card p-3 flex items-center gap-3">
-                  <span className="text-2xl">{chore.emoji}</span>
-                  <div className="flex-1">
-                    <p className="font-semibold">{chore.name}</p>
-                    <p className="text-text-muted text-xs">+{chore.pointValue} pts</p>
-                  </div>
-                  <span className={`text-sm font-bold px-2 py-1 rounded-lg ${
-                    ci.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                    ci.status === 'submitted' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
-                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                  }`}>
-                    {ci.status === 'approved' ? '✓ Done' : ci.status === 'submitted' ? '⏳ Pending' : '○ Todo'}
-                  </span>
-                </div>
-              )
-            })}
-            {todayInstances.length > 3 && (
-              <button onClick={() => navigate('/kid/chores')} className="text-accent text-sm font-semibold text-center py-2">
-                See all {todayInstances.length} chores →
-              </button>
-            )}
+          <div className="card overflow-hidden">
+            {/* Progress bar at top */}
+            <div className="h-1.5" style={{ background: 'var(--surface-sunken)' }}>
+              <div className="h-full transition-all duration-700"
+                style={{ width: `${totalToday > 0 ? (doneToday / totalToday) * 100 : 0}%`, background: user.accentColor }} />
+            </div>
+            <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+              {todayInstances.slice(0, 4).map(ci => {
+                const chore = chores.find(c => c.id === ci.choreId)
+                if (!chore) return null
+                const isDone = ci.status === 'approved'
+                const isPending = ci.status === 'submitted'
+                return (
+                  <button key={ci.id}
+                    onClick={() => navigate('/kid/chores')}
+                    className="w-full flex items-center gap-3 p-3.5 text-left hover:opacity-80 transition-opacity">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm border-2 transition-all ${isDone ? 'border-transparent' : 'border-current'}`}
+                      style={{ background: isDone ? user.accentColor : 'transparent', color: isDone ? 'white' : 'var(--text-muted)', borderColor: isDone ? user.accentColor : undefined }}>
+                      {isDone ? '✓' : chore.emoji}
+                    </div>
+                    <span className={`flex-1 font-bold text-sm ${isDone ? 'line-through' : ''}`}
+                      style={{ color: isDone ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                      {chore.name}
+                    </span>
+                    {isPending
+                      ? <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ background: '#f59e0b20', color: '#f59e0b' }}>Pending</span>
+                      : !isDone && <span className="text-xs font-black" style={{ color: user.accentColor }}>+{chore.pointValue}</span>
+                    }
+                  </button>
+                )
+              })}
+              {todayInstances.length > 4 && (
+                <button onClick={() => navigate('/kid/chores')}
+                  className="w-full text-center py-3 text-sm font-black"
+                  style={{ color: user.accentColor }}>
+                  See all {todayInstances.length} chores →
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Prize goal */}
-      {pinnedPrize ? (
-        <div className="mx-4 mb-3 card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-bold flex items-center gap-2">🎯 Goal: {pinnedPrize.emoji} {pinnedPrize.name}</p>
-            <button onClick={() => setPinnedPrizeId(null)} className="text-text-muted text-xs">change</button>
-          </div>
-          <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full mb-1">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${goalProgress}%` }}
-              transition={{ duration: 1 }}
-              className="h-full rounded-full"
-              style={{ backgroundColor: user.accentColor }}
-            />
-          </div>
-          <p className="text-text-muted text-sm">
-            {pointsToGoal === 0 ? '🎉 You can redeem this now!' : `${pointsToGoal} more points to go!`}
-          </p>
-        </div>
-      ) : (
-        <div className="mx-4 mb-3">
-          <button
-            onClick={() => setPrizePickerOpen(true)}
-            className="card w-full p-4 flex items-center gap-3 hover:opacity-90"
-          >
-            <Gift className="w-6 h-6" style={{ color: 'var(--accent)' }} />
-            <div className="text-left">
-              <p className="font-bold">Set a reward goal</p>
-              <p className="text-text-muted text-sm">Pick a prize to save up for</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-text-muted ml-auto" />
+      {/* Reward goal */}
+      <div className="px-5 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="section-title" style={{ marginBottom: 0 }}>Reward Goal</p>
+          <button onClick={() => setPrizePickerOpen(true)}
+            className="text-xs font-black" style={{ color: user.accentColor }}>
+            {pinnedPrize ? 'Change' : 'Set Goal'}
           </button>
         </div>
-      )}
 
-      {/* Upcoming activities */}
+        {pinnedPrize ? (
+          <div className="card p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-4xl">{pinnedPrize.emoji}</span>
+              <div className="flex-1">
+                <p className="font-black">{pinnedPrize.name}</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>
+                  {pointsToGoal === 0 ? '🎉 Ready to redeem!' : `${pointsToGoal} more points to go`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-black" style={{ color: user.accentColor }}>{points}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>/ {pinnedPrize.cost}</p>
+              </div>
+            </div>
+            <div className="progress-bar">
+              <motion.div className="progress-bar-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${goalProgress}%` }}
+                transition={{ duration: 1 }}
+                style={{ background: user.accentColor }} />
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setPrizePickerOpen(true)}
+            className="card w-full p-5 text-center hover:shadow-md transition-shadow"
+            style={{ borderStyle: 'dashed', borderWidth: 2, borderColor: user.accentColor + '40', background: user.accentColor + '08' }}>
+            <p className="text-2xl mb-1">🎯</p>
+            <p className="font-black text-sm" style={{ color: user.accentColor }}>Pick a reward to save up for</p>
+          </button>
+        )}
+      </div>
+
+      {/* Upcoming */}
       {upcomingActivities.length > 0 && (
-        <div className="mx-4 mb-3">
-          <h2 className="font-bold text-lg mb-2">Coming Up</h2>
+        <div className="px-5 mb-4">
+          <p className="section-title">Coming Up</p>
           <div className="grid gap-2">
             {upcomingActivities.map(a => (
-              <div key={a.id} className="card p-3 flex items-center gap-3">
-                <span className="text-2xl">{a.emoji}</span>
+              <div key={a.id} className="card p-3.5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                  style={{ background: user.accentColor + '15' }}>
+                  {a.emoji}
+                </div>
                 <div>
-                  <p className="font-semibold">{a.title}</p>
-                  <p className="text-text-muted text-xs">
-                    {formatDate(a.start.split('T')[0])} {a.start.includes('T') ? '· ' + format(parseISO(a.start), 'h:mm a') : ''}
+                  <p className="font-black text-sm">{a.title}</p>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    {formatDate(a.start.split('T')[0])}
+                    {a.start.includes('T') ? ' · ' + format(parseISO(a.start), 'h:mm a') : ''}
                   </p>
                 </div>
               </div>
@@ -255,27 +282,28 @@ export function KidHome() {
 
       {/* Recent activity */}
       {recentActivity.length > 0 && (
-        <div className="mx-4 mb-3">
-          <h2 className="font-bold text-lg mb-2">Recent Activity</h2>
-          <div className="card p-3 grid gap-2">
+        <div className="px-5 mb-4">
+          <p className="section-title">Recent Activity</p>
+          <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
             {recentActivity.map(e => (
-              <div key={e.id} className="flex items-center gap-2 text-sm">
-                <span className={`font-bold ${e.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <div key={e.id} className="flex items-center gap-3 p-3.5">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${e.amount > 0 ? 'text-green-600' : 'text-red-500'}`}
+                  style={{ background: e.amount > 0 ? '#22c55e20' : '#ef444420' }}>
                   {e.amount > 0 ? '+' : ''}{e.amount}
-                </span>
-                <span className="text-text-muted flex-1">{e.reason}</span>
+                </div>
+                <p className="text-sm font-semibold flex-1" style={{ color: 'var(--text-primary)' }}>{e.reason}</p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Badges preview */}
+      {/* Badges row */}
       {userBadges.length > 0 && (
-        <div className="mx-4 mb-3">
+        <div className="px-5 mb-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-lg">Badges</h2>
-            <button onClick={() => navigate('/kid/badges')} className="text-accent text-sm">See all</button>
+            <p className="section-title" style={{ marginBottom: 0 }}>Badges</p>
+            <button onClick={() => navigate('/kid/badges')} className="text-xs font-black" style={{ color: user.accentColor }}>See all</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {userBadges.slice(0, 6).map(b => {
@@ -283,7 +311,7 @@ export function KidHome() {
               return def ? (
                 <div key={b.id} className="card p-3 text-center flex-shrink-0 w-20">
                   <div className="text-2xl">{def.emoji}</div>
-                  <div className="text-xs text-text-muted mt-1 truncate">{def.name}</div>
+                  <div className="text-xs font-bold mt-1 truncate" style={{ color: 'var(--text-muted)' }}>{def.name}</div>
                 </div>
               ) : null
             })}
@@ -292,44 +320,47 @@ export function KidHome() {
       )}
 
       {/* Mood modal */}
-      <Modal open={moodOpen} onClose={() => setMoodOpen(false)} title="How's your day going?">
-        <div className="grid grid-cols-5 gap-3 py-4">
+      <Modal open={moodOpen} onClose={() => setMoodOpen(false)} title="How's your day?">
+        <div className="grid grid-cols-5 gap-2 py-4">
           {MOODS.map(({ emoji, label }) => (
-            <motion.button
-              key={emoji}
-              whileTap={{ scale: 0.9 }}
+            <motion.button key={emoji} whileTap={{ scale: 0.9 }}
               onClick={() => selectMood(emoji)}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:opacity-80"
+              style={{ background: 'var(--surface-sunken)' }}>
               <span className="text-4xl">{emoji}</span>
-              <span className="text-xs text-text-muted">{label}</span>
+              <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{label}</span>
             </motion.button>
           ))}
         </div>
       </Modal>
 
-      {/* Prize picker modal */}
-      <Modal open={prizePickerOpen} onClose={() => setPrizePickerOpen(false)} title="Set a Goal">
-        <div className="grid gap-3 py-2">
-          {prizes.filter(p => p.active).map(p => (
-            <motion.button
-              key={p.id}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { setPinnedPrizeId(p.id); setPrizePickerOpen(false) }}
-              className="card p-4 flex items-center gap-3 text-left hover:opacity-90"
-            >
-              <span className="text-3xl">{p.emoji}</span>
-              <div className="flex-1">
-                <p className="font-bold">{p.name}</p>
-                <PointsBadge points={p.cost} size="sm" />
-              </div>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${
-                points >= p.cost ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {points >= p.cost ? 'Ready!' : `${Math.max(0, p.cost - points)} to go`}
-              </span>
-            </motion.button>
-          ))}
+      {/* Prize picker */}
+      <Modal open={prizePickerOpen} onClose={() => setPrizePickerOpen(false)} title="Set a Reward Goal">
+        <div className="grid gap-2 py-2">
+          {prizes.filter(p => p.active).map(p => {
+            const progress = Math.min(100, (points / p.cost) * 100)
+            const canAfford = points >= p.cost
+            return (
+              <motion.button key={p.id} whileTap={{ scale: 0.98 }}
+                onClick={() => { setPinnedPrizeId(p.id); setPrizePickerOpen(false) }}
+                className={`card p-4 text-left ${pinnedPrizeId === p.id ? 'ring-2' : ''}`}
+                style={pinnedPrizeId === p.id ? { outline: `2px solid ${user.accentColor}` } : {}}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl">{p.emoji}</span>
+                  <div className="flex-1">
+                    <p className="font-black">{p.name}</p>
+                    <p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>
+                      {canAfford ? '✅ Ready!' : `${p.cost - points} pts to go`}
+                    </p>
+                  </div>
+                  <p className="font-black text-lg" style={{ color: user.accentColor }}>⭐ {p.cost}</p>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-bar-fill" style={{ width: `${progress}%`, background: user.accentColor }} />
+                </div>
+              </motion.button>
+            )
+          })}
         </div>
       </Modal>
     </div>
